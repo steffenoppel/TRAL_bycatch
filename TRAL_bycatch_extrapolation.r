@@ -9,7 +9,7 @@
 
 ## modified in May 2023 to extrapolate potential consequences of total bycatch figures extrapolated by Ross Wanless and Joel Rice
 
-
+library(popbio)
 library(tidyverse)
 library(lubridate)
 library(data.table)
@@ -39,6 +39,30 @@ ls()
 # goodyears: dataframe that specifies the annual observation effort as the proportion of marked animals observed in that year, column 'p.sel' indicates the effort intercept for low effort (1) or high effort (2) years
 # mean.props: vector of length 8 specifying the mean proportion of the annual breeding population that is counted in each of the 8 study areas in matrix R - used to relate population process to count data
 # phi.juv.possible: dataframe that specifies the number of chicks ringed in each year (row) of the study, indicating whether it was possible to estimate juvenile survival (JuvSurv) for that year (=1) or not (=0, when N too low)
+
+
+
+#########################################################################
+# CALCULATE CRUDE STABLE AGE DISTRIBUTION TO ALLOCATE MORTALITY TO AGE CLASSES BY EXPECTED PROPORTION OF ABUNDANCE
+#########################################################################
+
+## take mean survival and fecundity values from paper
+Sx <- c(0.821,rep(0.948,30))
+Fx <- c(rep(0,30),0.312)
+les.mat <- matrix(rep(0,961),nrow=31)
+les.mat[1,] <- Fx
+for(i in 1:30){
+  les.mat[(i+1),i] <- Sx[i]
+}
+les.mat[31,31] <- Sx[31]
+n<-as.numeric(c(round(mean(PROD.DAT$J)),rep(NA,30)))   # produce simple initial vector of population sizes based on mean N of juveniles and survival
+for (l in 2:30){
+  n[l]<-round(n[l-1]*Sx[l-1])
+}
+n[31]<-7752-sum(n, na.rm=T) # populate adults from the sum of estimated total pop size in 2021
+n
+pop.pro <- pop.projection(A=les.mat, n, 1000)
+pop.pro$stable.stage
 
 
 
@@ -78,6 +102,7 @@ jags.data <- list(marr.j = chick.marray,
                   FUT.YEAR=30, ## number of years for future projection
                   n.scenarios=4, ## number of future scenarios explored
                   bycatch=bycatch,
+                  age.dist<-pop.pro$stable.stage,  ### the age distribution for random assignment of dead birds to age classes
                   fut.surv.change=as.matrix(fut.surv.change[,2:5]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
                   fut.fec.change=c(1,1,1,1)     ## future fecundity change - vector with one element for each scenario. Here assuming that nothing changes
 )
@@ -89,8 +114,8 @@ jags.data <- list(marr.j = chick.marray,
 #########################################################################
 # SPECIFY MODEL IN JAGS
 #########################################################################
-setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\TRAL_IPM")
-sink("Oppel_etal_TRAL_IPM.jags")
+setwd("C:/Users/sop/Documents/Steffen/RSPB/TRAL_bycatch")
+sink("TRAL_bycatch_project.jags")
 cat("
 
 model {
@@ -102,6 +127,7 @@ model {
     # - productivity based on all areas incubator and chick counts
     # - adult breeders assumed to be detected perfectly and p in CJS model is taken as return and breed probability in population process model
     # - linked population process with SUM OF count data
+    # - four projection scenarios based on N of birds killed by longliners each year
     # -------------------------------------------------
     
 #-------------------------------------------------  
@@ -367,12 +393,12 @@ model {
 #-------------------------------------------------  
 # 4. PROJECTION INTO FUTURE
 #-------------------------------------------------
-  ## includes 3 scenarios
-  ## scenario 1: projection with no changes in demography
-  ## scenario 2: successful mouse eradication in 2021 - fecundity doubles
-  ## scenario 3: increasing mouse impacts on adult survival (adult survival decreases by 10%)
-    
-    ## recruit probability
+  ## includes 4 scenarios with different estimates of annual total take of TRAL in longline fisheries
+  ## age distribution of mortality is unknown and must be generated randomly
+  ## TWO options - additive or compensatory mortality
+  ## OPTION ONE: mortality in addition to natural mortality
+  
+      ## recruit probability
     for (age in 1:30) {
       logit(p.juv.recruit.f[age])<-mu.p.juv[2] + (agebeta * age)
     }
@@ -384,6 +410,12 @@ model {
         
   ## LOOP OVER EACH SCENARIO  
   for(scen in 1:n.scenarios){
+    
+    ### ~~~~~~~~~~ RANDOMLY DRAW THE NUMBER OF BIRDS PER AGE CLASS THAT ARE KILLED EACH YEAR ~~~~~~~~~###
+    for (tt in 2:FUT.YEAR){
+      KILL[tt,] ~ dcat(mean.phi.ad, max(1,round(IM[T,age-1,3])))
+      
+    }
     
     ### ~~~~~~~~~~ COPY POPULATIONS FROM LAST YEAR OF DATA SERIES FOR FIRST FUTURE YEAR ~~~~~~~~~###
     
