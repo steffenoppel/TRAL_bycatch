@@ -102,7 +102,7 @@ jags.data <- list(marr.j = chick.marray,
                   FUT.YEAR=30, ## number of years for future projection
                   n.scenarios=4, ## number of future scenarios explored
                   bycatch=bycatch,
-                  age.dist<-pop.pro$stable.stage,  ### the age distribution for random assignment of dead birds to age classes
+                  age.dist=pop.pro$stable.stage,  ### the age distribution for random assignment of dead birds to age classes
                   fut.surv.change=as.matrix(fut.surv.change[,2:5]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
                   fut.fec.change=c(1,1,1,1)     ## future fecundity change - vector with one element for each scenario. Here assuming that nothing changes
 )
@@ -412,9 +412,8 @@ model {
   for(scen in 1:n.scenarios){
     
     ### ~~~~~~~~~~ RANDOMLY DRAW THE NUMBER OF BIRDS PER AGE CLASS THAT ARE KILLED EACH YEAR ~~~~~~~~~###
-    for (tt in 2:FUT.YEAR){
-      KILL[tt,] ~ dcat(mean.phi.ad, max(1,round(IM[T,age-1,3])))
-      
+    for (tt in 1:FUT.YEAR){
+      KILL[scen,tt,] ~ dmulti(age.dist, bycatch[scen]))
     }
     
     ### ~~~~~~~~~~ COPY POPULATIONS FROM LAST YEAR OF DATA SERIES FOR FIRST FUTURE YEAR ~~~~~~~~~###
@@ -430,13 +429,13 @@ model {
     IM.f[scen,1,1,3] <- IM.f[scen,1,1,1] - IM.f[scen,1,1,2]
     
     for(age in 2:3) {
-      IM.f[scen,1,age,1] ~ dbin(mean.phi.ad, max(1,round(IM[T,age-1,3])))
+      IM.f[scen,1,age,1] ~ dbin(mean.phi.ad, max(1,round(IM[T,age-1,3]-KILL[scen,1,age])))
       IM.f[scen,1,age,2] <- 0 #min(round(IM[T,age-1,3]),IM.f[scen,1,age,1])*p.juv.recruit.f[age]  ## prevent 2-3 year olds from recruiting
       IM.f[scen,1,age,3]   <- IM.f[scen,1,age,1] - IM.f[scen,1,age,2]
     }
 
     for(age in 4:30) {
-      IM.f[scen,1,age,1] ~ dbin(mean.phi.ad, max(1,round(IM[T,age-1,3])))
+      IM.f[scen,1,age,1] ~ dbin(mean.phi.ad, max(1,round(IM[T,age-1,3]-KILL[scen,1,age])))
       IM.f[scen,1,age,2] ~ dbin(p.juv.recruit.f[age],round(IM.f[scen,1,age,1]))
       IM.f[scen,1,age,3]   <- IM.f[scen,1,age,1] - IM.f[scen,1,age,2]
     }
@@ -445,7 +444,7 @@ model {
 
     ## THE BREEDING POPULATION ##
     
-    N.ad.surv.f[scen,1] ~ dbin(mean.phi.ad, round(Ntot.breed[T]+N.atsea[T]))              ### previous year's adults that survive
+    N.ad.surv.f[scen,1] ~ dbin(mean.phi.ad, round(Ntot.breed[T]+N.atsea[T]-KILL[scen,1,31]))              ### previous year's adults that survive
     N.breed.ready.f[scen,1] ~ dbin(min(0.95,(mean.p.ad[2]/(1-mean.fec))), round(N.ad.surv.f[scen,1]))              ### number of available breeders is proportion of survivors that returns, with fecundity INCLUDED in return probability
     Ntot.breed.f[scen,1]<- round(N.breed.ready.f[scen,1]+N.recruits.f[scen,1])            ### number of counted breeders is sum of old breeders returning and first recruits
     N.atsea.f[scen,1] <- round(N.ad.surv.f[scen,1]-N.breed.ready.f[scen,1])               ### potential breeders that remain at sea
@@ -477,20 +476,20 @@ model {
       IM.f[scen,tt,1,3] <- IM.f[scen,tt,1,1] - IM.f[scen,tt,1,2]
     
     for(age in 2:3) {
-      IM.f[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3])))
+      IM.f[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3]-KILL[scen,tt-1,age-1])))
       IM.f[scen,tt,age,2] <- 0
       IM.f[scen,tt,age,3] <- IM.f[scen,tt,age,1] - IM.f[scen,tt,age,2]
     }
     
     for(age in 4:30) {
-      IM.f[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3])))
+      IM.f[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3]-KILL[scen,tt-1,age-1])))
       IM.f[scen,tt,age,2] ~ dbin(p.juv.recruit.f[age], round(IM.f[scen,tt,age,1]))
       IM.f[scen,tt,age,3] <- IM.f[scen,tt,age,1] - IM.f[scen,tt,age,2]
     }
     N.recruits.f[scen,tt] <- sum(IM.f[scen,tt,,2])  ### number of this years recruiters
     
     ## THE BREEDING POPULATION ##
-    N.ad.surv.f[scen,tt] ~ dbin(fut.surv.change[tt,scen]*mean.phi.ad, round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1]))           ### previous year's adults that survive
+    N.ad.surv.f[scen,tt] ~ dbin(fut.surv.change[tt,scen]*mean.phi.ad, round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1]-KILL[scen,tt-1,31]))           ### previous year's adults that survive
     N.prev.succ.f[scen,tt] ~ dbin(fut.surv.change[tt,scen]*mean.phi.ad, round(N.succ.breed.f[scen,tt-1] + IM.f[scen,tt-1,3,2]))     ### add recruits age 2 and 3 here             ### these birds will  remain at sea because tey bred successfully
     N.breed.ready.f[scen,tt] ~ dbin(min(0.95,(mean.p.ad[2]/(1-mean.fec))), max(1,round(N.ad.surv.f[scen,tt])))                  ### number of available breeders is proportion of unsuccessful or non-breeding survivors that returns, subtracting breeding success from return probability in best monitoring years
     Ntot.breed.f[scen,tt]<- min(carr.capacity[scen,tt],round(N.breed.ready.f[scen,tt]+N.recruits.f[scen,tt]))              ### number of counted breeders is sum of old breeders returning and first recruits
