@@ -539,15 +539,14 @@ inits <- function(){list(mean.phi.ad = runif(1, 0.7, 0.97),
 # Select the parameters monitored
 parameters <- c("mean.phi.ad","mean.phi.juv","mean.fec",
                 "pop.growth.rate","fut.growth.rate",
-                "Ntot","Ntot.f","phi.ad","phi.juv","Ntot.breed",
-                "KILL")
+                "Ntot","Ntot.f","phi.ad","phi.juv","Ntot.breed")
 
 # MCMC settings
 nt <- 10
-nb <- 25
-nad <- 20
+nb <- 2500
+nad <- 2000
 nc <- 3
-ns <- 200
+ns <- 200000
 
 # RUN THE MODEL (took 3 days for ns=200000)
 TRALbyc <- run.jags(data=jags.data, inits=inits, parameters, 
@@ -572,7 +571,6 @@ addsummary_tralipm <- add.summary(TRALbyc,plots = runjags.getOption("predraw.plo
 predictions <- data.frame(summary(addsummary_tralipm),
                           parameter = row.names(summary(addsummary_tralipm)))
 row.names(predictions) <- 1:nrow(predictions)
-predictions <- predictions[1:218,]   ### 200 cuts off ann.fec
 predictions$Mode <- NULL
 np <- names(predictions) 
 names(predictions) <- c("lcl",np[2],"ucl",np[4:9],"Rhat",np[11])
