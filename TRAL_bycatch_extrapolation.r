@@ -581,11 +581,10 @@ export<-predictions %>%
   mutate(Year=c(
     rep(NA,8),         ## for mean phi, p, and growth rates
     seq(2004,2021,1),   ## for N.tot
-    rep(seq(2022,2051,1),each=3), ##  for Ntot.f with 3 scenarios
-    #seq(2004,2020,1), ##  for lambda 
-    rep(seq(1979,2020,1), 2), ##  for phi.ad and phi.juv
-    seq(2004,2021,1)   ## for ann.fec
-  )) %>%     ## for deviance and agebeta
+    rep(seq(2022,2051,1),each=4), ##  for Ntot.f with 4 scenarios
+    rep(seq(1979,2021,1), 2), ##  for phi.ad and phi.juv
+    seq(2004,2021,1)   ## for N.tot.breed
+  )) %>%
   mutate(demographic=parameter) %>%
   mutate(demographic=ifelse(grepl("fec",parameter,perl=T,ignore.case = T)==T,"fecundity",demographic))%>%
   mutate(demographic=ifelse(grepl("phi",parameter,perl=T,ignore.case = T)==T,"survival",demographic))%>%
@@ -601,27 +600,30 @@ TABLE1<-export %>%
   filter(parameter %in% c("fut.growth.rate[1]",
                           "fut.growth.rate[2]",
                           "fut.growth.rate[3]",
+                          "fut.growth.rate[4]",
                           "mean.fec",
                           "pop.growth.rate",
                           "mean.phi.ad",
-                          "mean.phi.juv" )) 
+                          "mean.phi.juv" )) %>%
+  rename(Bycatch_additive=Year) %>%
+  mutate(Bycatch=c(NA,NA,bycatch,NA,NA))
+  
 TABLE1
+fwrite(TABLE1,"TRAL_bycatch_projections_growth_rates_ADDITIVE_mortality.csv")
 
 
 
-
-## PRODUCE FIGURE 1 THAT SHOWS POPULATION TRAJECTORY
-
-## scenario 1: projection with no changes in demography
-## scenario 2: successful mouse eradication in 2021 - fecundity doubles
-## scenario 3: increasing mouse impacts on adult survival (adult survival decreases by 10%)
+## PRODUCE FIGURE THAT SHOWS POPULATION TRAJECTORY PER SCENARIO
 
 export %>%
   filter(grepl("Ntot",parameter,perl=T,ignore.case = T)) %>%
   filter(!grepl("Ntot.breed",parameter,perl=T,ignore.case = T)) %>%
   arrange(Year) %>%
-  mutate(Scenario="no future change") %>%
-  mutate(Scenario=if_else(grepl("f\\[2",parameter,perl=T,ignore.case = T), "after successful mouse eradication",if_else(grepl("f\\[3",parameter,perl=T,ignore.case = T),"no mouse eradication and worsening impacts",Scenario))) %>%
+  mutate(Scenario=if_else(grepl("f\\[2",parameter,perl=T,ignore.case = T),
+                          "Bycatch scenario 2",
+                          if_else(grepl("f\\[3",parameter,perl=T,ignore.case = T),
+                                  "Bycatch scenario 3",
+                                  if_else(grepl("f\\[4",parameter,perl=T,ignore.case = T),"Bycatch scenario 4","Bycatch scenario 1")))) %>%
   mutate(ucl=if_else(ucl>15000,15000,ucl)) %>%
   filter(!(Median<500 & Year<2020)) %>%
 
@@ -632,7 +634,7 @@ export %>%
   scale_fill_viridis_d(alpha=0.3,begin=0,end=0.98,direction=1) +
   scale_color_viridis_d(alpha=1,begin=0,end=0.98,direction=1) +
   
-  scale_y_continuous(breaks=seq(0,18000,2000), limits=c(0,20000),expand = c(0, 0))+
+  scale_y_continuous(breaks=seq(0,12000,2000), limits=c(0,13000),expand = c(0, 0))+
   scale_x_continuous(breaks=seq(2005,2050,5), limits=c(2004,2050))+
   labs(x="Year", y="\nTristan Albatross Population Size (Individuals)\n",
        col="Total population scenario",
@@ -643,10 +645,14 @@ export %>%
         axis.title=element_text(size=20),
         legend.text=element_text(size=14),
         legend.title = element_text(size=16),
-        legend.position=c(0.26,0.82),
+        legend.position=c(0.76,0.82),
         panel.grid.major = element_line(size=.1, color="grey94"),
         panel.grid.minor = element_blank(),
         panel.border = element_rect(fill=NA, colour = "black"))
+
+ggsave("TRAL_bycatch_pop_projections_ADDITIVE_mortality.jpg", width=12, height=8)
+
+
 
 
 ######################################################################################
@@ -662,17 +668,20 @@ which(dimnames(TRALipm$mcmc[[1]])[[2]]=="fut.growth.rate[4]")
 ## collate all samples
 fut.lam.samp<-data.frame()
 for(ch in 1:nc){
-  fut.lam.samp<-bind_rows(fut.lam.samp,as.data.frame((TRALipm$mcmc[[1]])[,5:7]))
+  fut.lam.samp<-bind_rows(fut.lam.samp,as.data.frame((TRALipm$mcmc[[1]])[,5:8]))
 }
 head(fut.lam.samp)
 dim(fut.lam.samp)
 
 
 ## plot histograms for future pop growth rate
-fut.lam.samp %>% rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`,worse=`fut.growth.rate[3]`) %>%
-  gather(key="Scenario",value="N") %>%
-  mutate(Scenario=if_else(Scenario=="erad", "after successful mouse eradication",if_else(Scenario=="worse","no mouse eradication and worsening impacts","no future change"))) %>%
-  
+fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`,worse=`fut.growth.rate[3]`) %>%
+  gather(key="parameter",value="N") %>%
+  mutate(Scenario=if_else(grepl("rate\\[2",parameter,perl=T,ignore.case = T),
+                          "Bycatch scenario 2",
+                          if_else(grepl("rate\\[3",parameter,perl=T,ignore.case = T),
+                                  "Bycatch scenario 3",
+                                  if_else(grepl("rate\\[4",parameter,perl=T,ignore.case = T),"Bycatch scenario 4","Bycatch scenario 1")))) %>%
   ggplot(aes(x = N, fill = Scenario)) +                       # Draw overlaying histogram
   geom_histogram(position = "identity", alpha = 0.2, bins = 80, aes(y = ..density..), color="black") +
   geom_density(alpha=0.5) +
@@ -689,9 +698,12 @@ fut.lam.samp %>% rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`,
         axis.title=element_text(size=20),
         legend.text=element_text(size=12),
         legend.title = element_text(size=14),
-        legend.position=c(0.14,0.88),
+        legend.position=c(0.74,0.88),
         panel.grid.major = element_line(size=.1, color="grey94"),
         panel.grid.minor = element_blank(),
         panel.border = element_rect(fill=NA, colour = "black"))
 
+
+
+ggsave("TRAL_bycatch_pop_growth_rates_ADDITIVE_mortality.jpg", width=12, height=8)
 
