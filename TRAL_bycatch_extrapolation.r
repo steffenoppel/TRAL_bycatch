@@ -546,10 +546,10 @@ parameters <- c("mean.phi.ad","mean.phi.juv","mean.fec",
 
 # MCMC settings
 nt <- 10
-nb <- 250
-nad <- 200
+nb <- 25000
+nad <- 2000
 nc <- 3
-ns <- 200
+ns <- 200000
 
 # RUN THE MODEL (took 3 days for ns=200000)
 TRALbyc <- run.jags(data=jags.data, inits=inits, parameters, 
