@@ -483,9 +483,9 @@ model {
     }
     
     for(age in 4:30) {
-      IM.f.pot[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3]-KILL[scen,tt-1,age-1])))
+      IM.f.pot[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3])))
       IM.f[scen,tt,age,1] <-min(IM.f.pot[scen,tt,age,1],round(IM.f[scen,tt-1,age-1,3]-KILL[scen,tt-1,age-1]))   ## takes the minimum surviving number of either estimated or calculated with bycatch
-      IM.f[scen,tt,age,2] ~ dbin(p.juv.recruit.f[age], round(IM.f[scen,tt,age,1]))
+      IM.f[scen,tt,age,2] ~ dbin(p.juv.recruit.f[age], max(1,round(IM.f[scen,tt,age,1])))
       IM.f[scen,tt,age,3] <- IM.f[scen,tt,age,1] - IM.f[scen,tt,age,2]
     }
     N.recruits.f[scen,tt] <- sum(IM.f[scen,tt,,2])  ### number of this years recruiters
@@ -512,7 +512,7 @@ model {
     
     
     ## DERIVED MEAN FUTURE GROWTH RATE 
-    fut.growth.rate[scen] <- exp((1/(FUT.YEAR-1))*sum(log(fut.lambda[scen,1:(FUT.YEAR-1)])))   # Geometric mean
+    fut.growth.rate[scen] <- exp((1/(FUT.YEAR-1))*sum(log(max(0.00001,fut.lambda[scen,1:(FUT.YEAR-1)]))))   # Geometric mean, inserted safety to prevent log(0) which creates invalid parent value
     
   } # end future projection scenarios
     
@@ -710,3 +710,5 @@ fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`
 
 ggsave("TRAL_bycatch_pop_growth_rates_ADDITIVE_mortality.jpg", width=12, height=8)
 
+
+save.image("TRAL_bycatch_model_output_ADDITIVE.RData")
