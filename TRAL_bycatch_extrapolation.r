@@ -628,10 +628,11 @@ export %>%
                                   "Bycatch scenario 3",
                                   if_else(grepl("f\\[4",parameter,perl=T,ignore.case = T),"Bycatch scenario 4","Bycatch scenario 1")))) %>%
   mutate(ucl=if_else(ucl>15000,15000,ucl)) %>%
+  mutate(lcl=if_else(lcl<0,0,lcl)) %>%
   filter(!(Median<500 & Year<2020)) %>%
 
   ggplot() + 
-  geom_line(aes(y=Median*2, x=Year, colour=Scenario), size=1)+   #
+  geom_line(aes(y=Median*2, x=Year, colour=Scenario), linewidth=1)+   #
   geom_ribbon(aes(x=Year, ymin=lcl*2,ymax=ucl*2, fill=Scenario),alpha=0.3)+ #
 
   scale_fill_viridis_d(alpha=0.3,begin=0,end=0.98,direction=1) +
@@ -653,7 +654,7 @@ export %>%
         panel.grid.minor = element_blank(),
         panel.border = element_rect(fill=NA, colour = "black"))
 
-ggsave("TRAL_bycatch_pop_projections_ADDITIVE_mortality.jpg", width=12, height=8)
+ggsave("TRAL_bycatch_pop_projections_COMPENSATORY_mortality.jpg", width=12, height=8)
 
 
 
@@ -663,15 +664,15 @@ ggsave("TRAL_bycatch_pop_projections_ADDITIVE_mortality.jpg", width=12, height=8
 ######################################################################################
 
 ## get all mcmc samples for fut.growth.rate[1-3]
-which(dimnames(TRALipm$mcmc[[1]])[[2]]=="fut.growth.rate[1]")
-which(dimnames(TRALipm$mcmc[[1]])[[2]]=="fut.growth.rate[2]")
-which(dimnames(TRALipm$mcmc[[1]])[[2]]=="fut.growth.rate[3]")
-which(dimnames(TRALipm$mcmc[[1]])[[2]]=="fut.growth.rate[4]")
+which(dimnames(TRALbyc$mcmc[[1]])[[2]]=="fut.growth.rate[1]")
+which(dimnames(TRALbyc$mcmc[[1]])[[2]]=="fut.growth.rate[2]")
+which(dimnames(TRALbyc$mcmc[[1]])[[2]]=="fut.growth.rate[3]")
+which(dimnames(TRALbyc$mcmc[[1]])[[2]]=="fut.growth.rate[4]")
 
 ## collate all samples
 fut.lam.samp<-data.frame()
 for(ch in 1:nc){
-  fut.lam.samp<-bind_rows(fut.lam.samp,as.data.frame((TRALipm$mcmc[[1]])[,5:8]))
+  fut.lam.samp<-bind_rows(fut.lam.samp,as.data.frame((TRALbyc$mcmc[[1]])[,5:8]))
 }
 head(fut.lam.samp)
 dim(fut.lam.samp)
@@ -686,7 +687,7 @@ fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`
                                   "Bycatch scenario 3",
                                   if_else(grepl("rate\\[4",parameter,perl=T,ignore.case = T),"Bycatch scenario 4","Bycatch scenario 1")))) %>%
   ggplot(aes(x = N, fill = Scenario)) +                       # Draw overlaying histogram
-  geom_histogram(position = "identity", alpha = 0.2, bins = 80, aes(y = ..density..), color="black") +
+  geom_histogram(position = "identity", alpha = 0.2, bins = 80, aes(y = after_stat(density)), color="black") +
   geom_density(alpha=0.5) +
   #geom_vline(aes(xintercept = 1), colour="indianred3", size=1) +
   geom_segment(aes(x = 1, y = 0, xend = 1, yend = 50), colour="gray15", linetype = "dashed", size=1)+
@@ -702,13 +703,11 @@ fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`
         legend.text=element_text(size=12),
         legend.title = element_text(size=14),
         legend.position=c(0.74,0.88),
-        panel.grid.major = element_line(size=.1, color="grey94"),
-        panel.grid.minor = element_blank(),
         panel.border = element_rect(fill=NA, colour = "black"))
 
 
 
-ggsave("TRAL_bycatch_pop_growth_rates_ADDITIVE_mortality.jpg", width=12, height=8)
+ggsave("TRAL_bycatch_pop_growth_rates_COMPENSATORY_mortality.jpg", width=12, height=8)
 
 
-save.image("TRAL_bycatch_model_output_ADDITIVE.RData")
+save.image("TRAL_bycatch_model_output_COMPENSATORY.RData")
