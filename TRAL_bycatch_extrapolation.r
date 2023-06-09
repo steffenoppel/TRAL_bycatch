@@ -85,8 +85,8 @@ goodyears$p.sel<-ifelse(goodyears$Contact_Year<2004,1,ifelse(goodyears$Contact_Y
 
 
 ## Modify surv matrix because we will not assume any changes over time
-fut.surv.change$SURV3<-1
-fut.surv.change$SURV4<-1
+#fut.surv.change$SURV3<-1
+#fut.surv.change$SURV4<-1
 
 ## CREATE LONGLINE MORTALITY VECTOR FOR 4 SCENARIOS
 bycatch<-c(238,476,395,790)
@@ -115,7 +115,8 @@ jags.data <- list(marr.j = chick.marray,
                   n.scenarios=4, ## number of future scenarios explored
                   bycatch=bycatch,
                   age.dist=pop.pro$stable.stage,  ### the age distribution for random assignment of dead birds to age classes
-                  fut.surv.change=as.matrix(fut.surv.change[,2:5]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
+                  #fut.surv.change=as.matrix(fut.surv.change[,2:5]),  ## future survival rate change - matrix that adjusts gradual decrease in survival
+                  fish.reduct=c(0,0.5,0.75,1),  ## reduction in fisheries bycatch mortality from 0 -100%
                   fut.fec.change=c(1,1,1,1)     ## future fecundity change - vector with one element for each scenario. Here assuming that nothing changes
 )
 
@@ -127,7 +128,7 @@ jags.data <- list(marr.j = chick.marray,
 # SPECIFY MODEL IN JAGS
 #########################################################################
 setwd("C:/Users/sop/Documents/Steffen/RSPB/TRAL_bycatch")
-sink("TRAL_bycatch_project_COMPENSATORY.jags")
+sink("TRAL_bycatch_project_FISHING_REDUCTION.jags")
 cat("
 
 model {
@@ -177,6 +178,8 @@ model {
       mean.p.ad[gy] ~ dunif(0, 1)	           # Prior for mean adult recapture - should be higher than 20%
       mu.p.juv[gy] <- log(mean.p.juv[gy] / (1-mean.p.juv[gy])) # Logit transformation
       mu.p.ad[gy] <- log(mean.p.ad[gy] / (1-mean.p.ad[gy])) # Logit transformation
+      
+      prop.fish.mort[gy] ~ dunif(0, 1)    # prior for the proportion of mortality resulting from fisheries
     }
     agebeta ~ dunif(0,1)    # Prior for shape of increase in juvenile recapture probability with age
     
@@ -214,7 +217,10 @@ model {
       eps.p[j] ~ dnorm(0, tau.p)
     }
     
-    
+    ### ~~~~~~~~~~ RANDOMLY DRAW THE NUMBER OF BIRDS PER AGE CLASS THAT ARE KILLED EACH YEAR ~~~~~~~~~###
+    for (t in 1:(n.occasions-1)){
+      KILL[t,1:31] ~ dmulti(age.dist, bycatch[3])  ### use scenario 3 for bycatch
+    }
     
 #-------------------------------------------------  
 # 2. LIKELIHOODS AND ECOLOGICAL STATE MODEL
@@ -286,7 +292,8 @@ model {
     IM[tt,1,1] ~ dbin(phi.juv[tt+24], max(1,round(JUV[tt-1])))                                  ### number of 1-year old survivors 
     IM[tt,1,2] <- 0
     IM[tt,1,3] <- IM[tt,1,1] - IM[tt,1,2]
-    
+    IM.kill[tt,1,1] ~ KILL[t-1,1]/(JUV[tt-1]-IM[tt,1,1])
+    KILL[t-1,1] ~ dbin(prop.fish.mort[1], (JUV[tt-1]-IM[tt,1,1]))
 
     for(age in 2:3) {
       IM[tt,age,1] ~ dbin(phi.ad[tt+24], max(1,round(IM[tt-1,age-1,3])))
@@ -422,11 +429,6 @@ model {
         
   ## LOOP OVER EACH SCENARIO  
   for(scen in 1:n.scenarios){
-    
-    ### ~~~~~~~~~~ RANDOMLY DRAW THE NUMBER OF BIRDS PER AGE CLASS THAT ARE KILLED EACH YEAR ~~~~~~~~~###
-    for (tt in 1:FUT.YEAR){
-      KILL[scen,tt,1:31] ~ dmulti(age.dist, bycatch[scen])
-    }
     
     ### ~~~~~~~~~~ ADJUST FUTURE SURVIVAL DEPENDING ON PROP OF FISHERY DEATH THAT CAN BE ELIMINATED ~~~~~~~~~###
     fut.surv.ad[scen]<-(1-((1-mean.phi.ad)*(1-prop.fish.mort.ad))) -    ### those are the birds that survive naturally if there is no fishery mortality
