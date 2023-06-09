@@ -18,6 +18,18 @@ filter<-dplyr::filter
 select<-dplyr::select
 
 
+##### NEED TO DO ######
+## after chat with Ross Wanless on 8 June 2023
+## use scenario 3 for now, build different scenarios
+## use pop in 2018 to estimate what prop of mortality is due to fishery, then create projections in the future
+## reduce bycatch by 50, 75 and 100% and project population
+
+### include a prop.fishery.death parameter that is estimated for every year based on N juv and N old that die
+### then use that parameter to adjust future survival projections
+
+### NEED TO FIX FUTURE POPULATION PROCESS AND INCLUDE PROP:FISH:MORT IN EQUATION
+
+
 
 #########################################################################
 # LOAD ALL PREPARED DATA
@@ -416,6 +428,12 @@ model {
       KILL[scen,tt,1:31] ~ dmulti(age.dist, bycatch[scen])
     }
     
+    ### ~~~~~~~~~~ ADJUST FUTURE SURVIVAL DEPENDING ON PROP OF FISHERY DEATH THAT CAN BE ELIMINATED ~~~~~~~~~###
+    fut.surv.ad[scen]<-(1-((1-mean.phi.ad)*(1-prop.fish.mort.ad))) -    ### those are the birds that survive naturally if there is no fishery mortality
+                        ((1-mean.phi.ad)*(prop.fish.mort.ad)*(1-reduction[scen])) ### those are the birds that additionally die from fishery
+    fut.surv.juv[scen]<-(1-((1-mean.phi.juv)*(1-prop.fish.mort.juv))) -    ### those are the birds that survive naturally if there is no fishery mortality
+                        ((1-mean.phi.juv)*(prop.fish.mort.juv)*(1-reduction[scen])) ### those are the birds that additionally die from fishery
+    
     ### ~~~~~~~~~~ COPY POPULATIONS FROM LAST YEAR OF DATA SERIES FOR FIRST FUTURE YEAR ~~~~~~~~~###
     
     ## IMMATURE MATRIX WITH 3 columns:
@@ -476,14 +494,14 @@ model {
       IM.f[scen,tt,1,3] <- IM.f[scen,tt,1,1] - IM.f[scen,tt,1,2]
     
     for(age in 2:3) {
-      IM.f.pot[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3])))
+      IM.f.pot[scen,tt,age,1] ~ dbin(fut.surv.ad[scen], max(1,round(IM.f[scen,tt-1,age-1,3])))
       IM.f[scen,tt,age,1] <-min(IM.f.pot[scen,tt,age,1],round(IM.f[scen,tt-1,age-1,3]-KILL[scen,tt-1,age-1]))   ## takes the minimum surviving number of either estimated or calculated with bycatch
       IM.f[scen,tt,age,2] <- 0
       IM.f[scen,tt,age,3] <- IM.f[scen,tt,age,1] - IM.f[scen,tt,age,2]
     }
     
     for(age in 4:30) {
-      IM.f.pot[scen,tt,age,1] ~ dbin(mean.phi.ad, max(1,round(IM.f[scen,tt-1,age-1,3])))
+      IM.f.pot[scen,tt,age,1] ~ dbin(fut.surv.ad[scen], max(1,round(IM.f[scen,tt-1,age-1,3])))
       IM.f[scen,tt,age,1] <-min(IM.f.pot[scen,tt,age,1],round(IM.f[scen,tt-1,age-1,3]-KILL[scen,tt-1,age-1]))   ## takes the minimum surviving number of either estimated or calculated with bycatch
       IM.f[scen,tt,age,2] ~ dbin(p.juv.recruit.f[age], max(1,round(IM.f[scen,tt,age,1])))
       IM.f[scen,tt,age,3] <- IM.f[scen,tt,age,1] - IM.f[scen,tt,age,2]
@@ -491,9 +509,9 @@ model {
     N.recruits.f[scen,tt] <- sum(IM.f[scen,tt,,2])  ### number of this years recruiters
     
     ## THE BREEDING POPULATION ##
-    N.ad.surv.f.pot[scen,tt] ~ dbin(fut.surv.change[tt,scen]*mean.phi.ad, max(1,round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1])))           ### previous year's adults that survive
+    N.ad.surv.f.pot[scen,tt] ~ dbin(fut.surv.ad[scen], max(1,round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1])))           ### previous year's adults that survive
     N.ad.surv.f[scen,tt] <-min(N.ad.surv.f.pot[scen,tt],round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1]-KILL[scen,tt-1,31]))   ## takes the minimum surviving number of either estimated or calculated with bycatch
-    N.prev.succ.f[scen,tt] ~ dbin(mean.phi.ad, max(1,round(N.succ.breed.f[scen,tt-1] + IM.f[scen,tt-1,3,2])))     ### add recruits age 2 and 3 here             ### these birds will  remain at sea because they bred successfully
+    N.prev.succ.f[scen,tt] ~ dbin(fut.surv.ad[scen], max(1,round(N.succ.breed.f[scen,tt-1] + IM.f[scen,tt-1,3,2])))     ### add recruits age 2 and 3 here             ### these birds will  remain at sea because they bred successfully
     N.breed.ready.f[scen,tt] ~ dbin(min(0.95,(mean.p.ad[2]/(1-mean.fec))), max(1,round(N.ad.surv.f[scen,tt])))                  ### number of available breeders is proportion of unsuccessful or non-breeding survivors that returns, subtracting breeding success from return probability in best monitoring years
     Ntot.breed.f[scen,tt]<- min(carr.capacity[scen,tt],round(N.breed.ready.f[scen,tt]+N.recruits.f[scen,tt]))              ### number of counted breeders is sum of old breeders returning and first recruits
     N.succ.breed.f[scen,tt] ~ dbin(fut.fec.change[scen]*mean.fec, round(Ntot.breed.f[scen,tt]))                  ### these birds will  remain at sea because they bred successfully
