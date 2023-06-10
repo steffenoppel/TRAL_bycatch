@@ -419,8 +419,8 @@ model {
       prop.fish.mort.juv[t]<-KILL[t,1]/max(1,IM.kill[t,1])   
       prop.fish.mort.ad[t]<-sum(KILL[t,2:31])/sum(IM.kill[t,2:30],AD.kill[t])
     }
-    mean.prop.fish.mort.juv<-max(0,min(1,mean(prop.fish.mort.juv[1:17])))   ### just using 2016, but could use mean over years
-    mean.prop.fish.mort.ad<-max(0,min(1,mean(prop.fish.mort.ad[1:17])))     ### just using 2016, but could use mean over years
+    mean.prop.fish.mort.juv<-max(0,min(1,prop.fish.mort.juv[13]))   ### just using 2016, but could use mean over years
+    mean.prop.fish.mort.ad<-max(0,min(1,prop.fish.mort.ad[13]))     ### just using 2016, but could use mean over years
     
     
 #-------------------------------------------------  
@@ -578,10 +578,10 @@ parameters <- c("mean.phi.ad","mean.phi.juv","mean.fec",
 
 # MCMC settings
 nt <- 10
-nb <- 250
-nad <- 20
+nb <- 25000
+nad <- 2000
 nc <- 3
-ns <- 2000
+ns <- 200000
 
 # RUN THE MODEL (took 3 days for ns=200000)
 TRALbyc <- run.jags(data=jags.data, inits=inits, parameters, 
