@@ -314,10 +314,18 @@ model {
   for(scen in 1:n.scenarios){
     
     ### ~~~~~~~~~~ ADJUST FUTURE SURVIVAL DEPENDING ON PROP OF FISHERY DEATH THAT CAN BE ELIMINATED ~~~~~~~~~###
-    fut.surv.ad[scen]<-(1-((1-mean.phi.ad)*(1-mean.prop.fish.mort.ad))) -    ### those are the birds that survive naturally if there is no fishery mortality
-                        ((1-mean.phi.ad)*(mean.prop.fish.mort.ad)*(1-fish.reduct[scen])) ### those are the birds that additionally die from fishery
-    fut.surv.juv[scen]<-(1-((1-mean.phi.juv)*(1-mean.prop.fish.mort.juv))) -    ### those are the birds that survive naturally if there is no fishery mortality
-                        ((1-mean.phi.juv)*(mean.prop.fish.mort.juv)*(1-fish.reduct[scen])) ### those are the birds that additionally die from fishery
+    ## use ifelse statement to avoid tainting future growth rate
+    
+    fut.surv.ad[scen]<-ifelse(scen==1,mean.phi.ad,
+                        (1-((1-mean.phi.ad)*(1-mean.prop.fish.mort.ad))) -    ### those are the birds that survive naturally if there is no fishery mortality
+                        ((1-mean.phi.ad)*(mean.prop.fish.mort.ad)*(1-fish.reduct[scen]))) ### those are the birds that additionally die from fishery
+    fut.surv.juv[scen]<-ifelse(scen==1,mean.phi.juv,
+                        (1-((1-mean.phi.juv)*(1-mean.prop.fish.mort.juv))) -    ### those are the birds that survive naturally if there is no fishery mortality
+                        ((1-mean.phi.juv)*(mean.prop.fish.mort.juv)*(1-fish.reduct[scen]))) ### those are the birds that additionally die from fishery
+    
+    
+    
+    
     
     ### ~~~~~~~~~~ COPY POPULATIONS FROM LAST YEAR OF DATA SERIES FOR FIRST FUTURE YEAR ~~~~~~~~~###
     
