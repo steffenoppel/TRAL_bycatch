@@ -445,10 +445,18 @@ model {
   for(scen in 1:n.scenarios){
     
     ### ~~~~~~~~~~ ADJUST FUTURE SURVIVAL DEPENDING ON PROP OF FISHERY DEATH THAT CAN BE ELIMINATED ~~~~~~~~~###
-    fut.surv.ad[scen]<-(1-((1-mean.phi.ad)*(1-mean.prop.fish.mort.ad))) -    ### those are the birds that survive naturally if there is no fishery mortality
-                        ((1-mean.phi.ad)*(mean.prop.fish.mort.ad)*(1-fish.reduct[scen])) ### those are the birds that additionally die from fishery
-    fut.surv.juv[scen]<-(1-((1-mean.phi.juv)*(1-mean.prop.fish.mort.juv))) -    ### those are the birds that survive naturally if there is no fishery mortality
-                        ((1-mean.phi.juv)*(mean.prop.fish.mort.juv)*(1-fish.reduct[scen])) ### those are the birds that additionally die from fishery
+    ## use ifelse statement to avoid tainting future growth rate
+    
+    fut.surv.ad[scen]<-ifelse(scen==1,mean.phi.ad,
+                        (1-((1-mean.phi.ad)*(1-mean.prop.fish.mort.ad))) -    ### those are the birds that survive naturally if there is no fishery mortality
+                        ((1-mean.phi.ad)*(mean.prop.fish.mort.ad)*(1-fish.reduct[scen]))) ### those are the birds that additionally die from fishery
+    fut.surv.juv[scen]<-ifelse(scen==1,mean.phi.juv,
+                        (1-((1-mean.phi.juv)*(1-mean.prop.fish.mort.juv))) -    ### those are the birds that survive naturally if there is no fishery mortality
+                        ((1-mean.phi.juv)*(mean.prop.fish.mort.juv)*(1-fish.reduct[scen]))) ### those are the birds that additionally die from fishery
+    
+    
+    
+    
     
     ### ~~~~~~~~~~ COPY POPULATIONS FROM LAST YEAR OF DATA SERIES FOR FIRST FUTURE YEAR ~~~~~~~~~###
     
@@ -618,7 +626,8 @@ export<-predictions %>%
     seq(2004,2021,1),   ## for N.tot
     rep(seq(2022,2051,1),each=4), ##  for Ntot.f with 4 scenarios
     rep(seq(1979,2021,1), 2), ##  for phi.ad and phi.juv
-    seq(2004,2021,1)   ## for N.tot.breed
+    seq(2004,2021,1),   ## for N.tot.breed
+    c(2016,2016)   ## prop.fish.mortality
   )) %>%
   mutate(demographic=parameter) %>%
   mutate(demographic=ifelse(grepl("fec",parameter,perl=T,ignore.case = T)==T,"fecundity",demographic))%>%
@@ -626,6 +635,7 @@ export<-predictions %>%
   mutate(demographic=ifelse(grepl("Ntot",parameter,perl=T,ignore.case = T)==T,"pop.size",demographic)) %>%
   mutate(demographic=ifelse(grepl("growth",parameter,perl=T,ignore.case = T)==T,"growth.rate",demographic)) %>%
   mutate(demographic=ifelse(grepl("agebeta",parameter,perl=T,ignore.case = T)==T,"agebeta",demographic)) %>%
+  mutate(demographic=ifelse(grepl("prop.fish.mort",parameter,perl=T,ignore.case = T)==T,"fishery.mortality",demographic)) %>%
   arrange(demographic,Year)
 
 
@@ -639,12 +649,15 @@ TABLE1<-export %>%
                           "mean.fec",
                           "pop.growth.rate",
                           "mean.phi.ad",
-                          "mean.phi.juv" )) %>%
-  rename(Bycatch_additive=Year) %>%
-  mutate(Bycatch=c(NA,NA,bycatch,NA,NA))
+                          "mean.phi.juv",
+                          "mean.prop.fish.mort.ad",
+                          "mean.prop.fish.mort.juv"
+                          )) %>%
+  mutate(Bycatch.reduction=c(NA,NA,NA,NA,0,0.5,0.75,1,NA,NA)) %>%
+  select(demographic,parameter,Bycatch.reduction,Mean,Median,lcl,ucl,SSeff,Rhat)
   
 TABLE1
-fwrite(TABLE1,"TRAL_bycatch_projections_growth_rates_ADDITIVE_mortality.csv")
+fwrite(TABLE1,"TRAL_projected_growth_rates_bycatch_reduction.csv")
 
 
 
@@ -655,11 +668,11 @@ export %>%
   filter(!grepl("Ntot.breed",parameter,perl=T,ignore.case = T)) %>%
   arrange(Year) %>%
   mutate(Scenario=if_else(grepl("f\\[2",parameter,perl=T,ignore.case = T),
-                          "Bycatch scenario 2",
+                          "Bycatch reduction 50%",
                           if_else(grepl("f\\[3",parameter,perl=T,ignore.case = T),
-                                  "Bycatch scenario 3",
-                                  if_else(grepl("f\\[4",parameter,perl=T,ignore.case = T),"Bycatch scenario 4","Bycatch scenario 1")))) %>%
-  mutate(ucl=if_else(ucl>15000,15000,ucl)) %>%
+                                  "Bycatch reduction 75%",
+                                  if_else(grepl("f\\[4",parameter,perl=T,ignore.case = T),"Bycatch reduction 100%","No bycatch reduction")))) %>%
+  #mutate(ucl=if_else(ucl>15000,15000,ucl)) %>%
   mutate(lcl=if_else(lcl<0,0,lcl)) %>%
   filter(!(Median<500 & Year<2020)) %>%
 
@@ -670,7 +683,7 @@ export %>%
   scale_fill_viridis_d(alpha=0.3,begin=0,end=0.98,direction=1) +
   scale_color_viridis_d(alpha=1,begin=0,end=0.98,direction=1) +
   
-  scale_y_continuous(breaks=seq(0,12000,2000), limits=c(0,13000),expand = c(0, 0))+
+  scale_y_continuous(breaks=seq(0,24000,2000), limits=c(0,25000),expand = c(0, 0))+
   scale_x_continuous(breaks=seq(2005,2050,5), limits=c(2004,2050))+
   labs(x="Year", y="\nTristan Albatross Population Size (Individuals)\n",
        col="Total population scenario",
@@ -681,12 +694,12 @@ export %>%
         axis.title=element_text(size=20),
         legend.text=element_text(size=14),
         legend.title = element_text(size=16),
-        legend.position=c(0.76,0.82),
+        legend.position=c(0.26,0.82),
         panel.grid.major = element_line(size=.1, color="grey94"),
         panel.grid.minor = element_blank(),
         panel.border = element_rect(fill=NA, colour = "black"))
 
-ggsave("TRAL_bycatch_pop_projections_COMPENSATORY_mortality.jpg", width=12, height=8)
+ggsave("TRAL_pop_projections_bycatch_reduction.jpg", width=12, height=8)
 
 
 
@@ -714,15 +727,15 @@ dim(fut.lam.samp)
 fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`,worse=`fut.growth.rate[3]`) %>%
   gather(key="parameter",value="N") %>%
   mutate(Scenario=if_else(grepl("rate\\[2",parameter,perl=T,ignore.case = T),
-                          "Bycatch scenario 2",
+                          "Bycatch reduction 50%",
                           if_else(grepl("rate\\[3",parameter,perl=T,ignore.case = T),
-                                  "Bycatch scenario 3",
-                                  if_else(grepl("rate\\[4",parameter,perl=T,ignore.case = T),"Bycatch scenario 4","Bycatch scenario 1")))) %>%
+                                  "Bycatch reduction 75%",
+                                  if_else(grepl("rate\\[4",parameter,perl=T,ignore.case = T),"Bycatch reduction 100%","No bycatch reduction")))) %>%
   ggplot(aes(x = N, fill = Scenario)) +                       # Draw overlaying histogram
   geom_histogram(position = "identity", alpha = 0.2, bins = 80, aes(y = after_stat(density)), color="black") +
   geom_density(alpha=0.5) +
   #geom_vline(aes(xintercept = 1), colour="indianred3", size=1) +
-  geom_segment(aes(x = 1, y = 0, xend = 1, yend = 50), colour="gray15", linetype = "dashed", size=1)+
+  geom_segment(aes(x = 1, y = 0, xend = 1, yend = 1500), colour="gray15", linetype = "dashed", size=1)+
   
   labs(x="Future population growth rate", y="Probability density",
        fill="Scenario") +
@@ -739,7 +752,7 @@ fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`
 
 
 
-ggsave("TRAL_bycatch_pop_growth_rates_COMPENSATORY_mortality.jpg", width=12, height=8)
+ggsave("TRAL_pop_growth_rates_bycatch_reduction.jpg", width=12, height=8)
 
 
-save.image("TRAL_bycatch_model_output_COMPENSATORY.RData")
+save.image("TRAL_bycatch_reduction_model_output.RData")
