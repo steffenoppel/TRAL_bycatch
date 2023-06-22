@@ -531,7 +531,7 @@ model {
     N.recruits.f[scen,tt] <- sum(IM.f[scen,tt,,2])  ### number of this years recruiters
     
     ## THE BREEDING POPULATION ##
-    N.ad.surv.f[scen,tt] ~ dbin(fut.surv.ad[scen], max(1,round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1])))           ### previous year's adults that survive
+    N.ad.surv.f[scen,tt] ~ dbin(fut.surv.ad[scen], round((Ntot.breed.f[scen,tt-1]-N.succ.breed.f[scen,tt-1])+N.atsea.f[scen,tt-1]))           ### previous year's adults that survive
     N.prev.succ.f[scen,tt] ~ dbin(fut.surv.ad[scen], max(1,round(N.succ.breed.f[scen,tt-1] + IM.f[scen,tt-1,3,2])))     ### add recruits age 2 and 3 here             ### these birds will  remain at sea because they bred successfully
     N.breed.ready.f[scen,tt] ~ dbin(min(0.95,(mean.p.ad[2]/(1-mean.fec))), max(1,round(N.ad.surv.f[scen,tt])))                  ### number of available breeders is proportion of unsuccessful or non-breeding survivors that returns, subtracting breeding success from return probability in best monitoring years
     Ntot.breed.f[scen,tt]<- min(carr.capacity[scen,tt],round(N.breed.ready.f[scen,tt]+N.recruits.f[scen,tt]))              ### number of counted breeders is sum of old breeders returning and first recruits
@@ -551,7 +551,7 @@ model {
     
     
     ## DERIVED MEAN FUTURE GROWTH RATE 
-    fut.growth.rate[scen] <- exp((1/(FUT.YEAR-1))*sum(log(max(0.00001,fut.lambda[scen,1:(FUT.YEAR-1)]))))   # Geometric mean, inserted safety to prevent log(0) which creates invalid parent value
+    fut.growth.rate[scen] <- exp((1/(FUT.YEAR-1))*sum(log(fut.lambda[scen,1:(FUT.YEAR-1)])))   # Geometric mean, inserted safety to prevent log(0) which creates invalid parent value
     
   } # end future projection scenarios
     
@@ -586,12 +586,12 @@ parameters <- c("mean.phi.ad","mean.phi.juv","mean.fec",
 
 # MCMC settings
 nt <- 10
-nb <- 25000
-nad <- 2000
+nb <- 15000
+nad <- 1000
 nc <- 3
-ns <- 200000
+ns <- 100000
 
-# RUN THE MODEL (took 3 days for ns=200000)
+# RUN THE MODEL (took 1 days for ns=100000)
 TRALbyc <- run.jags(data=jags.data, inits=inits, parameters, 
                     model="C:\\Users\\sop\\Documents\\Steffen\\RSPB\\TRAL_bycatch\\TRAL_bycatch_project_FISHING_REDUCTION.jags",
                     n.chains = nc, thin = nt, burnin = nb, adapt = nad,sample = ns, 
