@@ -79,7 +79,7 @@ jags.data <- list(marr.j = chick.marray,
 #########################################################################
 # SPECIFY MODEL IN JAGS
 #########################################################################
-setwd("C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\TRAL_IPM")
+setwd("C:/Users/sop/Documents/Steffen/RSPB/TRAL_bycatch")
 sink("Oppel_etal_TRAL_IPM.jags")
 cat("
 
@@ -504,14 +504,14 @@ parameters <- c("mean.phi.ad","mean.phi.juv","mean.fec","mean.propensity",
 
 # MCMC settings
 nt <- 10
-nb <- 25000
-nad <- 20000
+nb <- 15000
+nad <- 10000
 nc <- 3
-ns <- 200000
+ns <- 100000
 
 # RUN THE MODEL (took 3 days for ns=200000)
 TRALipm <- run.jags(data=jags.data, inits=inits, parameters, 
-                    model="C:\\STEFFEN\\RSPB\\UKOT\\Gough\\ANALYSIS\\PopulationModel\\TRAL_IPM\\Oppel_etal_TRAL_IPM.jags",
+                    model="C:/Users/sop/Documents/Steffen/RSPB/TRAL_bycatch/Oppel_etal_TRAL_IPM.jags",
                     n.chains = nc, thin = nt, burnin = nb, adapt = nad,sample = ns, 
                     method = "rjparallel") 
 
