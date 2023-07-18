@@ -661,6 +661,7 @@ fwrite(TABLE1,"TRAL_projected_growth_rates_bycatch_reduction.csv")
 
 
 
+
 ## PRODUCE FIGURE THAT SHOWS POPULATION TRAJECTORY PER SCENARIO
 
 export %>%
@@ -735,7 +736,7 @@ fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`
   geom_histogram(position = "identity", alpha = 0.2, bins = 80, aes(y = after_stat(density)), color="black") +
   geom_density(alpha=0.5) +
   #geom_vline(aes(xintercept = 1), colour="indianred3", size=1) +
-  geom_segment(aes(x = 1, y = 0, xend = 1, yend = 1500), colour="gray15", linetype = "dashed", size=1)+
+  geom_segment(aes(x = 1, y = 0, xend = 1, yend = 100), colour="gray15", linetype = "dashed", size=1)+
   
   labs(x="Future population growth rate", y="Probability density",
        fill="Scenario") +
@@ -747,12 +748,12 @@ fut.lam.samp %>% #rename(nochange=`fut.growth.rate[1]`,erad=`fut.growth.rate[2]`
         axis.title=element_text(size=20),
         legend.text=element_text(size=12),
         legend.title = element_text(size=14),
-        legend.position=c(0.74,0.88),
+        legend.position=c(0.24,0.88),
         panel.border = element_rect(fill=NA, colour = "black"))
 
 
 
-ggsave("TRAL_pop_growth_rates_bycatch_reduction.jpg", width=12, height=8)
+ggsave("TRAL_pop_growth_rates_bycatch_reduction.jpg", width=12, height=9)
 
 
 save.image("TRAL_bycatch_reduction_model_output.RData")
