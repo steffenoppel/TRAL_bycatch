@@ -12,6 +12,7 @@
 TRAL_bycatch_model_output_ADDITIVE_firstrun.RData
 TRAL_bycatch_model_output_COMPENSATORY.RData
 TRAL_bycatch_reduction_model_output.RData
+Leveraging novel datasets_TRAL_IPM _addition.docx
 
 # Output files from R CMD check
 /*.Rcheck/
